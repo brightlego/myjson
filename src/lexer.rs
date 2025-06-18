@@ -12,36 +12,96 @@ impl <T: Iterator<Item=char>> Lexer<T> {
         let lexer = Lexer { chars, previous_char: None };
         lexer
     }
-    
+
+    #[inline(always)]
     fn get_next_char(&mut self, error: ParseError) -> Result<char, ParseError> {
         self.get_next_char_option().ok_or(error)
     }
 
+    #[inline(always)]
     fn get_next_char_option(&mut self) -> Option<char> {
-        self.previous_char.take().or_else(|| self.chars.next())
+        if let Some(c) = self.previous_char {
+            self.previous_char = None;
+            Some(c)
+        }  else {
+            self.chars.next()
+        }
     }
 
+    #[inline(always)]
     fn backtrack(&mut self, c: char) {
         self.previous_char = Some(c);
     }
-    
+
+    #[inline(always)]
+    fn from_digit_float(c: char) -> f64 {
+        match c {
+            '0' => 0.,
+            '1' => 1.,
+            '2' => 2.,
+            '3' => 3.,
+            '4' => 4.,
+            '5' => 5.,
+            '6' => 6.,
+            '7' => 7.,
+            '8' => 8.,
+            '9' => 9.,
+            _ => panic!()
+        }
+    }
+
+    #[inline(always)]
+    fn from_digit_int(c: char) -> i32 {
+        match c {
+            '0' => 0,
+            '1' => 1,
+            '2' => 2,
+            '3' => 3,
+            '4' => 4,
+            '5' => 5,
+            '6' => 6,
+            '7' => 7,
+            '8' => 8,
+            '9' => 9,
+            _ => panic!()
+        }
+    }
+
+    #[inline(always)]
+    fn from_digit_u64(c: char) -> u64 {
+        match c {
+            '0' => 0,
+            '1' => 1,
+            '2' => 2,
+            '3' => 3,
+            '4' => 4,
+            '5' => 5,
+            '6' => 6,
+            '7' => 7,
+            '8' => 8,
+            '9' => 9,
+            _ => panic!()
+        }
+    }
+
     fn parse_number(&mut self) -> Result<f64, ParseError> {
         let initial = self.get_next_char(Unknown)?;
         let (sign, initial) =
             if initial == '-' { (-1.0, self.get_next_char(Unknown)?) }
             else { (1.0, initial) };
-        let mut mantissa: f64 = initial.to_digit(10).ok_or(Unknown)?.into();
+        let mut mantissa: u64 = initial.to_digit(10).ok_or(Unknown)?.into();
+        let mut offset = 0;
         let next = {
             let char = self.get_next_char_option();
             if let Some(mut char) = char {
-                if mantissa == 0.0 {
+                if mantissa == 0 {
                     char
                 } else {
-                    loop {
+                    for _ in 0..16 {
                         match char {
                             '0'..='9' => {
-                                mantissa *= 10.;
-                                mantissa += f64::from(char.to_digit(10).unwrap());
+                                mantissa *= 10;
+                                mantissa += Self::from_digit_u64(char);
                             }
                             _ => {
                                 break;
@@ -50,24 +110,36 @@ impl <T: Iterator<Item=char>> Lexer<T> {
                         if let Some(c) = self.get_next_char_option() {
                             char = c;
                         } else {
-                            return Ok(sign * mantissa);
+                            return Ok(sign * (mantissa as f64));
+                        }
+                    }
+                    loop {
+                        match char {
+                            '0'..='9' => {
+                                offset -= 1;
+                            }
+                            _ => break
+                        }
+                        if let Some(c) = self.get_next_char_option() {
+                            char = c;
+                        } else {
+                            return Ok(sign * (mantissa as f64) * 10.0f64.powi(-offset));
                         }
                     }
                     char
                 }
 
             } else {
-                return Ok(sign * mantissa);
+                return Ok(sign * (mantissa as f64));
             }
         };
-        let mut offset = 0;
         let next = if next == '.' {
             let mut char = self.get_next_char(Unknown)?;
-            loop {
+            while mantissa < 2<<54 {
                 match char {
                     '0'..='9' => {
-                        mantissa *= 10.;
-                        mantissa += f64::from(char.to_digit(10).unwrap());
+                        mantissa *= 10;
+                        mantissa += Self::from_digit_u64(char);
                         offset += 1;
                     }
                     _ => break
@@ -75,14 +147,26 @@ impl <T: Iterator<Item=char>> Lexer<T> {
                 if let Some(c) = self.get_next_char_option() {
                     char = c;
                 } else {
-                    return Ok((sign * mantissa) * 10.0f64.powi(-offset))
+                    return Ok((sign * (mantissa as f64)) * 10.0f64.powi(-offset))
                 }
+            }
+            loop {
+                match char {
+                    '0'..='9' => {}
+                    _ => break,
+                }
+                if let Some(c) = self.get_next_char_option() {
+                    char = c;
+                } else {
+                    return Ok((sign * (mantissa as f64)) * 10.0f64.powi(-offset))
+                }
+                
             }
             char
         } else {
             next
         };
-
+        let mantissa = mantissa as f64;
         if next == 'e' || next == 'E' {
             let mut char = self.get_next_char(Unknown)?;
             let mut exponent = 0i32;
@@ -99,7 +183,7 @@ impl <T: Iterator<Item=char>> Lexer<T> {
             loop {
                 match char {
                     '0'..='9' => {
-                        exponent += char.to_digit(10).unwrap() as i32;
+                        exponent += Self::from_digit_int(char);
                         exponent *= 10;
                     }
                     _ => {
@@ -108,8 +192,14 @@ impl <T: Iterator<Item=char>> Lexer<T> {
                         break;
                     }
                 }
-                // 400 will eventually generate an overflow anyway and this prevents integer overflow
-                exponent = exponent.min(4000);
+                // 400 will eventually generate an  anyway and this prevents integer overflow
+                if exponent >= 400 {
+                    return if exponent_sign < 0 {
+                        Ok(0.)
+                    } else {
+                        Ok(sign * f64::INFINITY)
+                    }
+                }
                 if let Some(c) = self.get_next_char_option() {
                     char = c;
                 } else {
@@ -128,7 +218,9 @@ impl <T: Iterator<Item=char>> Lexer<T> {
         let mut string = String::new();
         while let Some(char) = self.get_next_char_option() {
             match char {
-                '"' => return Ok(string),
+                '"' => {
+                    return Ok(string)
+                },
                 '\\' => {
                     match self.get_next_char(Unknown)? {
                         '"' => string.push('"'),
@@ -172,12 +264,10 @@ impl <T: Iterator<Item=char>> Lexer<T> {
     }
 
     fn consume_whitespace(&mut self) {
-        let mut char = self.get_next_char_option();
-        loop {
+        while let Some(char) = self.get_next_char_option() {
             match char {
-                Some(' ') | Some('\u{0009}') | Some('\u{000A}') | Some('\u{000D}') => char = self.get_next_char_option(),
-                Some(c) => { self.backtrack(c); return }
-                None => return
+                ' ' | '\u{0009}' | '\u{000A}' | '\u{000D}' => continue,
+                _ => { self.backtrack(char); return }
             }
         }
     }

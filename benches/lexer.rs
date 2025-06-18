@@ -1,22 +1,46 @@
 use std::fs;
 use std::hint::black_box;
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion, Throughput};
 use myjson::lexer::lexer;
+use myjson::parse;
 
 fn lexer_benchmark(c: &mut Criterion) {
+    let mut group = c.benchmark_group("lex");
     let canada = fs::read_to_string("data/canada.json").unwrap();
-    c.bench_function("lex canada.json", |b| {
+    group.throughput(Throughput::Bytes(canada.len() as u64));
+    group.bench_function("canada.json", |b| {
         b.iter(|| lexer(black_box(canada.chars())).last());
     });
     let citm_catalog = fs::read_to_string("data/citm_catalog.json").unwrap();
-    c.bench_function("lex citm_catalog.json", |b| {
+    group.throughput(Throughput::Bytes(citm_catalog.len() as u64));
+    group.bench_function("citm_catalog.json", |b| {
         b.iter(|| lexer(black_box(citm_catalog.chars())).last());
     });
     let twitter = fs::read_to_string("data/twitter.json").unwrap();
-    c.bench_function("lex twitter.json", |b| {
+    group.throughput(Throughput::Bytes(twitter.len() as u64));
+    group.bench_function("twitter.json", |b| {
         b.iter(|| lexer(black_box(twitter.chars())).last());
     });
 }
 
-criterion_group!(benches, lexer_benchmark);
+fn parser_benchmark(c: &mut Criterion) {
+    let mut group = c.benchmark_group("parse");
+    let canada = fs::read_to_string("data/canada.json").unwrap();
+    group.throughput(Throughput::Bytes(canada.len() as u64));
+    group.bench_function("canada.json", |b| {
+        b.iter(|| parse(black_box(canada.chars())));
+    });
+    let citm_catalog = fs::read_to_string("data/citm_catalog.json").unwrap();
+    group.throughput(Throughput::Bytes(citm_catalog.len() as u64));
+    group.bench_function("citm_catalog.json", |b| {
+        b.iter(|| parse(black_box(citm_catalog.chars())));
+    });
+    let twitter = fs::read_to_string("data/twitter.json").unwrap();
+    group.throughput(Throughput::Bytes(twitter.len() as u64));
+    group.bench_function("twitter.json", |b| {
+        b.iter(|| parse(black_box(twitter.chars())));
+    });
+}
+
+criterion_group!(benches, lexer_benchmark, parser_benchmark);
 criterion_main!(benches);

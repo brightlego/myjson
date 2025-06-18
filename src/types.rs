@@ -33,6 +33,15 @@ pub(crate) enum TokenValue {
     String(String), // a string as specified in Section 7
 }
 
+impl TokenValue {
+    pub(crate) fn can_be_value_start(&self) -> bool {
+        match self {
+            TokenValue::False | TokenValue::True | TokenValue::Number(_) | TokenValue::String(_) | TokenValue::Null | TokenValue::BeginObject | TokenValue::BeginArray => true,
+            _ => false
+        }
+    }
+}
+
 // NaN can never be a valid JSON number when parsed
 impl Eq for TokenValue {}
 

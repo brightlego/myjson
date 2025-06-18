@@ -37,8 +37,8 @@ pub(crate) enum TokenValue {
 impl Eq for TokenValue {}
 
 #[derive(Eq, PartialEq, Clone, Debug)]
-pub(crate) struct Token {
-    pub value: TokenValue,
+pub struct Token {
+    pub(crate) value: TokenValue,
 }
 
 impl Token {

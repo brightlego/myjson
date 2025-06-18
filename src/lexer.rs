@@ -251,7 +251,7 @@ impl <T: Iterator<Item=char>> Iterator for Lexer<T> {
     }
 }
 
-pub(crate) fn lexer(chars: impl Iterator<Item=char>) -> impl Iterator<Item=Result<Token, ParseError>> {
+pub fn lexer(chars: impl Iterator<Item=char>) -> impl Iterator<Item=Result<Token, ParseError>> {
     Lexer::new(chars)
 }
 
@@ -449,7 +449,7 @@ mod tests {
         test_lex_fail(r#"""#);
         test_lex_fail(r#""a"#);
     }
-    
+
     #[test]
     fn brackets() {
         test_lex_tokens([BeginObject], "{");

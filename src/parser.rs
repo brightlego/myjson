@@ -160,7 +160,7 @@ mod tests {
 
     #[test]
     fn parse_varied_array() {
-        assert_parse(Array(vec![Number(0.), String("".to_string()), Array(vec![]), Object(HashMap::new()), True]), r#"[0., "", [], {}, true]"#);
+        assert_parse(Array(vec![Number(0.), String("".to_string()), Array(vec![]), Object(HashMap::new()), True, False, Null]), r#"[0., "", [], {}, true, false, null]"#);
     }
     
     #[test]
@@ -169,8 +169,9 @@ mod tests {
                 ("a".to_string(), Array(vec![])), 
                 ("b".to_string(), Object(HashMap::new())), 
                 ("c".to_string(), Number(0.)), 
-                ("d".to_string(), Array(vec![Object(HashMap::new())]))
-        ])), r#"{"a": [], "b": {}, "c": 0., "d": [{}]}"#)
+                ("d".to_string(), Array(vec![Object(HashMap::new())])),
+                ("e".to_string(), String("f".to_string()))
+        ])), r#"{"a": [], "b": {}, "c": 0., "d": [{}], "e": "f"}"#)
     }
     
     #[test]
@@ -184,9 +185,37 @@ mod tests {
     }
     
     #[test]
+    fn parse_no_bad_separators() {
+        assert_parse_fail("[1,");
+        assert_parse_fail("[1");
+        assert_parse_fail("[1$]");
+        assert_parse_fail("[1[]]");
+    }
+    
+    #[test]
+    fn parse_must_finish_object() {
+        assert_parse_fail("[[1, 2], 3");
+        assert_parse_fail("[[1, 2], [3]");
+    }
+    
+    #[test]
+    fn parse_no_empty() {
+        assert_parse_fail("");
+    }
+    
+    #[test]
     fn parse_no_trailing_data() {
         assert_parse_fail("0 []");
         assert_parse_fail("[] 0");
         assert_parse_fail("{} 0");
+    }
+    
+    #[test]
+    fn parse_no_bad_object() {
+        assert_parse_fail(r#"{"a"}"#);
+        assert_parse_fail(r#"{"a":}"#);
+        assert_parse_fail(r#"{1: 2}"#);
+        assert_parse_fail(r#"{"a": 1, b: 2}"#);
+        assert_parse_fail(r#"{a: 1}"#);
     }
 }

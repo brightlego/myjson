@@ -34,23 +34,6 @@ impl <T: Iterator<Item=char>> Lexer<T> {
     }
 
     #[inline(always)]
-    fn from_digit_float(c: char) -> f64 {
-        match c {
-            '0' => 0.,
-            '1' => 1.,
-            '2' => 2.,
-            '3' => 3.,
-            '4' => 4.,
-            '5' => 5.,
-            '6' => 6.,
-            '7' => 7.,
-            '8' => 8.,
-            '9' => 9.,
-            _ => panic!()
-        }
-    }
-
-    #[inline(always)]
     fn from_digit_int(c: char) -> i32 {
         match c {
             '0' => 0,
@@ -62,8 +45,7 @@ impl <T: Iterator<Item=char>> Lexer<T> {
             '6' => 6,
             '7' => 7,
             '8' => 8,
-            '9' => 9,
-            _ => panic!()
+            '9' => 9, _ => panic!() // The panic case should never be reached
         }
     }
 
@@ -79,13 +61,11 @@ impl <T: Iterator<Item=char>> Lexer<T> {
             '6' => 6,
             '7' => 7,
             '8' => 8,
-            '9' => 9,
-            _ => panic!()
+            '9' => 9, _ => panic!() // The panic case should never be reached
         }
     }
 
-    fn parse_number(&mut self) -> Result<f64, ParseError> {
-        let initial = self.get_next_char(Unknown)?;
+    fn parse_number(&mut self, initial: char) -> Result<f64, ParseError> {
         let (sign, initial) =
             if initial == '-' { (-1.0, self.get_next_char(Unknown)?) }
             else { (1.0, initial) };
@@ -193,12 +173,8 @@ impl <T: Iterator<Item=char>> Lexer<T> {
                     }
                 }
                 // 400 will eventually generate an  anyway and this prevents integer overflow
-                if exponent >= 400 {
-                    return if exponent_sign < 0 {
-                        Ok(0.)
-                    } else {
-                        Ok(sign * f64::INFINITY)
-                    }
+                if exponent >= 4000 {
+                    exponent = 4000;
                 }
                 if let Some(c) = self.get_next_char_option() {
                     char = c;
@@ -271,6 +247,28 @@ impl <T: Iterator<Item=char>> Lexer<T> {
             }
         }
     }
+    
+    fn parse_false(&mut self) -> Result<Token, ParseError> {
+        self.assert_next_char('a', Unknown)?;
+        self.assert_next_char('l', Unknown)?;
+        self.assert_next_char('s', Unknown)?;
+        self.assert_next_char('e', Unknown)?;
+        Ok(Token::new(TokenValue::False))
+    }
+
+    fn parse_true(&mut self) -> Result<Token, ParseError> {
+        self.assert_next_char('r', Unknown)?;
+        self.assert_next_char('u', Unknown)?;
+        self.assert_next_char('e', Unknown)?;
+        Ok(Token::new(TokenValue::True))
+    }
+    
+    fn parse_null(&mut self) -> Result<Token, ParseError> {
+        self.assert_next_char('u', Unknown)?;
+        self.assert_next_char('l', Unknown)?;
+        self.assert_next_char('l', Unknown)?;
+        Ok(Token::new(TokenValue::Null))
+    }
 
     fn assert_next_char<E>(&mut self, expected: char, on_fail: E) -> Result<(), E> {
         let actual = self.get_next_char_option();
@@ -288,47 +286,11 @@ impl <T: Iterator<Item=char>> Iterator for Lexer<T> {
         self.consume_whitespace();
         let char = self.get_next_char_option()?;
         match char {
-            '"' => { // A string
-                match self.parse_string() {
-                    Ok(string) => Some(Ok(Token::new(TokenValue::String(string)))),
-                    Err(error) => Some(Err(error))
-                }
-            }
-            '-' | '0'..='9' => { //
-                self.backtrack(char);
-                match self.parse_number() {
-                    Ok(number) => Some(Ok(Token::new(TokenValue::Number(number)))),
-                    Err(error) => Some(Err(error))
-                }
-            }
-            'f' => {
-                if Some('a') == self.get_next_char_option()
-                    && Some('l') == self.get_next_char_option()
-                    && Some('s') == self.get_next_char_option()
-                    && Some('e') == self.get_next_char_option() {
-                    Some(Ok(Token::new(TokenValue::False)))
-                } else {
-                    Some(Err(Unknown))
-                }
-            }
-            't' => {
-                if Some('r') == self.get_next_char_option()
-                    && Some('u') == self.get_next_char_option()
-                    && Some('e') == self.get_next_char_option() {
-                    Some(Ok(Token::new(TokenValue::True)))
-                } else {
-                    Some(Err(Unknown))
-                }
-            }
-            'n' => {
-                if Some('u') == self.get_next_char_option()
-                    && Some('l') == self.get_next_char_option()
-                    && Some('l') == self.get_next_char_option() {
-                    Some(Ok(Token::new(TokenValue::Null)))
-                } else {
-                    Some(Err(Unknown))
-                }
-            }
+            '"' => Some(self.parse_string().map(|s| Token::new(TokenValue::String(s)))),
+            '-' | '0'..='9' => Some(self.parse_number(char).map(|n| Token::new(TokenValue::Number(n)))),
+            'f' => Some(self.parse_false()),
+            't' => Some(self.parse_true()),
+            'n' => Some(self.parse_null()),
             '{' => Some(Ok(Token::new(TokenValue::BeginObject))),
             '}' => Some(Ok(Token::new(TokenValue::EndObject))),
             '[' => Some(Ok(Token::new(TokenValue::BeginArray))),
@@ -372,8 +334,10 @@ mod tests {
     }
 
     #[test]
-    fn num_one() {
+    fn num_small() {
         test_lex_tokens([Number(1.0)], "1");
+        test_lex_tokens([Number(10.0)], "10");
+        test_lex_tokens([Number(512.0)], "512");
     }
 
     #[test]
@@ -420,6 +384,8 @@ mod tests {
     fn num_mantissa_too_large() {
         test_lex_tokens([Number(18446744073709551616.0)], "18446744073709551616");
         test_lex_tokens([Number(-18446744073709551616.0)], "-18446744073709551616");
+        test_lex_tokens([Number(1.8446744073709553)], "1.8446744073709551616000");
+        test_lex_tokens([Number(-1.8446744073709553)], "-1.8446744073709551616000");
 
     }
 
@@ -433,12 +399,16 @@ mod tests {
     fn num_exponent_far_too_large() {
         test_lex_tokens([Number(f64::INFINITY)], "1.14e18446744073709551616");
         test_lex_tokens([Number(f64::NEG_INFINITY)], "-1.14e18446744073709551616");
+        test_lex_tokens([Number(f64::INFINITY)], "1.14e184467440737095516160000");
+        test_lex_tokens([Number(f64::NEG_INFINITY)], "-1.14e184467440737095516160000");
     }
 
     #[test]
     fn num_exponent_far_too_small() {
         test_lex_tokens([Number(0.0)], "1.14e-18446744073709551616");
         test_lex_tokens([Number(0.0)], "-1.14e-18446744073709551616");
+        test_lex_tokens([Number(0.0)], "1.14e-184467440737095516160000");
+        test_lex_tokens([Number(0.0)], "-1.14e-184467440737095516160000");
 
     }
 
@@ -553,6 +523,26 @@ mod tests {
         test_lex_tokens([ValueSeparator], ",");
         test_lex_tokens([NameSeparator], ":");
     }
+    
+    #[test]
+    fn true_false_null() {
+        test_lex_tokens([True], "true");
+        test_lex_tokens([False], "false");
+        test_lex_tokens([Null], "null");
+    }
+
+    #[test]
+    fn bad_true_false_null() {
+        test_lex_fail("True");
+        test_lex_fail("False");
+        test_lex_fail("Null");
+        test_lex_fail("talse");
+        test_lex_fail("frue");
+        test_lex_fail("nul");
+        test_lex_fail("nulll");
+        test_lex_fail("Null");
+    }
+    
     #[test]
     fn preceding_whitespace() {
         test_lex_tokens([BeginObject], " {");

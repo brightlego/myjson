@@ -1,10 +1,11 @@
 use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use crate::lexer::lexer;
 use crate::types::{JSONValue, ParseError, Token, TokenValue};
 use crate::types::ParseError::{BadState, Unknown};
 
 enum JSONCollections {
-    Object { data: HashMap<String, JSONValue>, curr_label: Option<String> },
+    Object { data: FxHashMap<String, JSONValue>, curr_label: Option<String> },
     Array { data: Vec<JSONValue> }
 }
 
@@ -43,7 +44,7 @@ fn parse_first(tokens: &mut impl Iterator<Item=Result<Token, ParseError>>) -> Re
             (None, TokenValue::Null) => return Ok(JSONValue::Null),
             (None, TokenValue::String(s)) => return Ok(JSONValue::String(s)),
             (None, TokenValue::Number(n)) => return Ok(JSONValue::Number(n)),
-            (None, TokenValue::BeginObject) => values.push(JSONCollections::Object{data: HashMap::new(), curr_label: None}),
+            (None, TokenValue::BeginObject) => values.push(JSONCollections::Object{data: Default::default(), curr_label: None}),
             (None, TokenValue::BeginArray) => values.push(JSONCollections::Array {data: vec![]}),
             (Some(JSONCollections::Object {data, curr_label}), TokenValue::String(s)) => {
                 if let Some(label) = curr_label.take() {
@@ -63,7 +64,7 @@ fn parse_first(tokens: &mut impl Iterator<Item=Result<Token, ParseError>>) -> Re
             (Some(collection), TokenValue::String(s)) => collection.add_value(JSONValue::String(s))?,
             (Some(collection), TokenValue::Number(n)) => collection.add_value(JSONValue::Number(n))?,
             (Some(_), TokenValue::BeginArray) => values.push(JSONCollections::Array {data: vec![]}),
-            (Some(_), TokenValue::BeginObject) => values.push(JSONCollections::Object {data: HashMap::new(), curr_label: None}),
+            (Some(_), TokenValue::BeginObject) => values.push(JSONCollections::Object {data: Default::default(), curr_label: None}),
             (Some(JSONCollections::Array {..}), TokenValue::EndArray) => {
                 let JSONCollections::Array { data } = values.pop().unwrap() else { return Err(BadState) };
                 if let Some(collection) = values.last_mut() {
@@ -155,21 +156,21 @@ mod tests {
 
     #[test]
     fn parse_empty_object() {
-        assert_parse(Object(HashMap::new()), "{}");
+        assert_parse(Object(Default::default()), "{}");
     }
 
     #[test]
     fn parse_varied_array() {
-        assert_parse(Array(vec![Number(0.), String("".to_string()), Array(vec![]), Object(HashMap::new()), True, False, Null]), r#"[0., "", [], {}, true, false, null]"#);
+        assert_parse(Array(vec![Number(0.), String("".to_string()), Array(vec![]), Object(Default::default()), True, False, Null]), r#"[0., "", [], {}, true, false, null]"#);
     }
     
     #[test]
     fn parse_object() {
-        assert_parse(Object(HashMap::from([
+        assert_parse(Object(FxHashMap::from_iter([
                 ("a".to_string(), Array(vec![])), 
-                ("b".to_string(), Object(HashMap::new())), 
+                ("b".to_string(), Object(Default::default())), 
                 ("c".to_string(), Number(0.)), 
-                ("d".to_string(), Array(vec![Object(HashMap::new())])),
+                ("d".to_string(), Array(vec![Object(Default::default())])),
                 ("e".to_string(), String("f".to_string()))
         ])), r#"{"a": [], "b": {}, "c": 0., "d": [{}], "e": "f"}"#)
     }

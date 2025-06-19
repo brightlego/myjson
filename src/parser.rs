@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use rustc_hash::FxHashMap;
 use crate::lexer::lexer;
 use crate::types::{JSONValue, ParseError, Token, TokenValue};
@@ -28,11 +27,26 @@ impl JSONCollections {
     } 
 }
 
+fn ensure_separator(tokens: &mut impl Iterator<Item=Result<Token, ParseError>>) -> Result<Token, ParseError> {
+    let token = tokens.next().ok_or(Unknown)??;
+    match token.value {
+        TokenValue::EndArray | TokenValue::EndObject => Ok(token),
+        TokenValue::ValueSeparator => {
+            let token = tokens.next().ok_or(Unknown)??;
+            if token.value.can_be_value_start() {
+                Ok(token)
+            } else {
+                Err(Unknown)
+            }
+        }
+        _ => Err(Unknown)
+    }
+}
+
 fn parse_first(tokens: &mut impl Iterator<Item=Result<Token, ParseError>>) -> Result<JSONValue, ParseError> {
-    let mut tokens = tokens.peekable();
     let mut values: Vec<JSONCollections> = Vec::new();
-    while let Some(token) = tokens.next() {
-        let token = token?;
+    let mut token = tokens.next().ok_or(Unknown)??;
+    loop {
         let mut expecting_separator = match token.value {
             TokenValue::True | TokenValue::False | TokenValue::Null | TokenValue::String(_) | TokenValue::Number(_) | TokenValue::EndArray | TokenValue::EndObject => true,
             _ => false
@@ -90,30 +104,11 @@ fn parse_first(tokens: &mut impl Iterator<Item=Result<Token, ParseError>>) -> Re
         };
         
         if expecting_separator {
-            if let Some(res) = tokens.peek() {
-                if let Ok(res) = res {
-                    match res.value {
-                        TokenValue::ValueSeparator => {
-                            tokens.next();
-                            if let Some(res) = tokens.peek() {
-                                if let Ok(res) = res {
-                                    if res.value.can_be_value_start() {
-                                        continue;
-                                    }
-                                }
-                            }
-                        }
-                        TokenValue::EndObject | TokenValue::EndArray => {
-                            continue;
-                        }
-                        _ => {}
-                    }
-                }
-            }
-            return Err(Unknown)
+            token = ensure_separator(tokens)?;
+        } else {
+            token = tokens.next().ok_or(Unknown)??;
         }
     };
-    Err(Unknown)
 }
 
 pub fn parse(chars: impl Iterator<Item=char>) -> Result<JSONValue, ParseError> {

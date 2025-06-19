@@ -247,7 +247,7 @@ impl <T: Iterator<Item=char>> Lexer<T> {
             }
         }
     }
-    
+
     fn parse_false(&mut self) -> Result<Token, ParseError> {
         self.assert_next_char('a', Unknown)?;
         self.assert_next_char('l', Unknown)?;
@@ -262,7 +262,7 @@ impl <T: Iterator<Item=char>> Lexer<T> {
         self.assert_next_char('e', Unknown)?;
         Ok(Token::new(TokenValue::True))
     }
-    
+
     fn parse_null(&mut self) -> Result<Token, ParseError> {
         self.assert_next_char('u', Unknown)?;
         self.assert_next_char('l', Unknown)?;
@@ -523,7 +523,7 @@ mod tests {
         test_lex_tokens([ValueSeparator], ",");
         test_lex_tokens([NameSeparator], ":");
     }
-    
+
     #[test]
     fn true_false_null() {
         test_lex_tokens([True], "true");
@@ -542,7 +542,7 @@ mod tests {
         test_lex_fail("nulll");
         test_lex_fail("Null");
     }
-    
+
     #[test]
     fn preceding_whitespace() {
         test_lex_tokens([BeginObject], " {");

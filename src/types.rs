@@ -59,4 +59,5 @@ impl Token {
 pub enum ParseError {
     Unknown,
     BadState, // The program has entered an invalid state. This should never happen
+    ParseNumberError(std::num::ParseFloatError)
 }

@@ -156,7 +156,7 @@ mod tests {
 
     #[test]
     fn parse_varied_array() {
-        assert_parse(Array(vec![Number(0.), String("".to_string()), Array(vec![]), Object(Default::default()), True, False, Null]), r#"[0., "", [], {}, true, false, null]"#);
+        assert_parse(Array(vec![Number(0.), String("".to_string()), Array(vec![]), Object(Default::default()), True, False, Null]), r#"[0.0, "", [], {}, true, false, null]"#);
     }
     
     #[test]
@@ -167,7 +167,7 @@ mod tests {
                 ("c".to_string(), Number(0.)), 
                 ("d".to_string(), Array(vec![Object(Default::default())])),
                 ("e".to_string(), String("f".to_string()))
-        ])), r#"{"a": [], "b": {}, "c": 0., "d": [{}], "e": "f"}"#)
+        ])), r#"{"a": [], "b": {}, "c": 0.0, "d": [{}], "e": "f"}"#)
     }
     
     #[test]

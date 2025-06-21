@@ -1,6 +1,6 @@
 use std::char::DecodeUtf16Error;
 use crate::types::{ParseError, Token, TokenValue};
-use crate::types::ParseError::{Unknown};
+use crate::types::ParseError::{ParseNumberError, Unknown};
 
 struct Lexer<T: Iterator<Item=char>> {
     previous_char: Option<char>,
@@ -64,14 +64,16 @@ impl <T: Iterator<Item=char>> Lexer<T> {
             '9' => 9, _ => panic!() // The panic case should never be reached
         }
     }
-
-    fn parse_number(&mut self, initial: char) -> Result<f64, ParseError> {
-        let (sign, initial) =
-            if initial == '-' { (-1.0, self.get_next_char(Unknown)?) }
-            else { (1.0, initial) };
-        let mut mantissa: u64 = initial.to_digit(10).ok_or(Unknown)?.into();
+    fn parse_number(&mut self, mut char: char) -> Result<f64, ParseError> {
+        let sign =
+            if char == '-' { 
+                char = self.get_next_char(Unknown)?; 
+                -1.0 
+            }
+            else { 1.0 };
+        let mut mantissa: u64 = char.to_digit(10).ok_or(Unknown)?.into();
         let mut offset = 0;
-        let next = {
+        char = {
             let char = self.get_next_char_option();
             if let Some(mut char) = char {
                 if mantissa == 0 {
@@ -113,9 +115,9 @@ impl <T: Iterator<Item=char>> Lexer<T> {
                 return Ok(sign * (mantissa as f64));
             }
         };
-        let next = if next == '.' {
-            let mut char = self.get_next_char(Unknown)?;
-            while mantissa < 2<<54 {
+        if char == '.' {
+            char = self.get_next_char(Unknown)?;
+            while mantissa < 2<<52{
                 match char {
                     '0'..='9' => {
                         mantissa *= 10;
@@ -142,12 +144,9 @@ impl <T: Iterator<Item=char>> Lexer<T> {
                 }
                 
             }
-            char
-        } else {
-            next
         };
         let mantissa = mantissa as f64;
-        if next == 'e' || next == 'E' {
+        if char == 'e' || char == 'E' {
             let mut char = self.get_next_char(Unknown)?;
             let mut exponent = 0i32;
             let exponent_sign = if char == '-' {
@@ -185,7 +184,7 @@ impl <T: Iterator<Item=char>> Lexer<T> {
             }
             Ok(sign * mantissa * 10.0f64.powi(exponent_sign * exponent/10 - offset))
         } else {
-            self.backtrack(next);
+            self.backtrack(char);
             Ok(sign * mantissa * 10.0f64.powi(-offset))
         }
     }
@@ -384,8 +383,8 @@ mod tests {
     fn num_mantissa_too_large() {
         test_lex_tokens([Number(18446744073709551616.0)], "18446744073709551616");
         test_lex_tokens([Number(-18446744073709551616.0)], "-18446744073709551616");
-        test_lex_tokens([Number(1.8446744073709553)], "1.8446744073709551616000");
-        test_lex_tokens([Number(-1.8446744073709553)], "-1.8446744073709551616000");
+        test_lex_tokens([Number(1.8446744073709551)], "1.8446744073709551616000");
+        test_lex_tokens([Number(-1.8446744073709551)], "-1.8446744073709551616000");
 
     }
 

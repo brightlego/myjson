@@ -1,6 +1,6 @@
 use std::char::DecodeUtf16Error;
 use crate::types::{ParseError, Token, TokenValue};
-use crate::types::ParseError::{ParseNumberError, Unknown};
+use crate::types::ParseError::{Unknown};
 
 struct Lexer<T: Iterator<Item=char>> {
     previous_char: Option<char>,

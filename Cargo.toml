@@ -13,3 +13,7 @@ criterion = "0.6.0"
 [[bench]]
 name = "lexer"
 harness = false
+
+[workspace]
+resolver = "3"
+members = ["example"]

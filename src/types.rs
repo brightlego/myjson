@@ -1,4 +1,3 @@
-use std::fmt::{Display, Formatter};
 use rustc_hash::FxHashMap;
 
 // JSON specification: https://datatracker.ietf.org/doc/html/rfc7159

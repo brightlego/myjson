@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use rustc_hash::FxHashMap;
 
 // JSON specification: https://datatracker.ietf.org/doc/html/rfc7159
@@ -7,10 +8,10 @@ pub enum JSONValue {
     False,
     True,
     Null,
-    Object(FxHashMap<String, JSONValue>),
-    Array(Vec<JSONValue>),
-    Number(f64),
-    String(String),
+    Object { data: FxHashMap<String, JSONValue> },
+    Array { data: Vec<JSONValue> },
+    Number { number: f64 },
+    String { string: String },
 }
 
 // NaN can never be a valid JSON number when parsed

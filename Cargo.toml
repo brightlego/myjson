@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 rustc-hash = "2.1.1"
+ryu = "1.0"
 
 [dev-dependencies]
 criterion = "0.6.0"

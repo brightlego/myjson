@@ -46,18 +46,21 @@ fn stringify_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("stringify");
     let canada = fs::read_to_string("data/canada.json").unwrap();
     let canada = parse(canada.chars()).unwrap();
+    group.throughput(Throughput::Bytes(stringify(&canada).len() as u64));
     group.bench_function("canada.json", |b| {
-        b.iter(|| stringify(&canada));
+        b.iter(|| stringify(black_box(&canada)));
     });
     let citm_catalog = fs::read_to_string("data/citm_catalog.json").unwrap();
     let citm_catalog = parse(citm_catalog.chars()).unwrap();
+    group.throughput(Throughput::Bytes(stringify(&citm_catalog).len() as u64));
     group.bench_function("citm_catalog.json", |b| {
-        b.iter(|| stringify(&citm_catalog));
+        b.iter(|| stringify(black_box(&citm_catalog)));
     });
     let twitter = fs::read_to_string("data/twitter.json").unwrap();
     let twitter = parse(twitter.chars()).unwrap();
+    group.throughput(Throughput::Bytes(stringify(&twitter).len() as u64));
     group.bench_function("twitter.json", |b| {
-        b.iter(|| stringify(&twitter));
+        b.iter(|| stringify(black_box(&twitter)));
     });
 }
 

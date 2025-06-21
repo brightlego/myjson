@@ -56,13 +56,13 @@ fn parse_first(tokens: &mut impl Iterator<Item=Result<Token, ParseError>>) -> Re
             (None, TokenValue::True) => return Ok(JSONValue::True),
             (None, TokenValue::False) => return Ok(JSONValue::False),
             (None, TokenValue::Null) => return Ok(JSONValue::Null),
-            (None, TokenValue::String(s)) => return Ok(JSONValue::String(s)),
-            (None, TokenValue::Number(n)) => return Ok(JSONValue::Number(n)),
+            (None, TokenValue::String(s)) => return Ok(JSONValue::String { string: s }),
+            (None, TokenValue::Number(n)) => return Ok(JSONValue::Number { number: n }),
             (None, TokenValue::BeginObject) => values.push(JSONCollections::Object{data: Default::default(), curr_label: None}),
             (None, TokenValue::BeginArray) => values.push(JSONCollections::Array {data: vec![]}),
             (Some(JSONCollections::Object {data, curr_label}), TokenValue::String(s)) => {
                 if let Some(label) = curr_label.take() {
-                    data.insert(label, JSONValue::String(s));
+                    data.insert(label, JSONValue::String { string: s });
                 } else {
                     *curr_label = Some(s);
                     if TokenValue::NameSeparator == tokens.next().ok_or(Unknown)??.value {
@@ -75,16 +75,16 @@ fn parse_first(tokens: &mut impl Iterator<Item=Result<Token, ParseError>>) -> Re
             (Some(collection), TokenValue::True) => collection.add_value(JSONValue::True)?,
             (Some(collection), TokenValue::False) => collection.add_value(JSONValue::False)?,
             (Some(collection), TokenValue::Null) => collection.add_value(JSONValue::Null)?,
-            (Some(collection), TokenValue::String(s)) => collection.add_value(JSONValue::String(s))?,
-            (Some(collection), TokenValue::Number(n)) => collection.add_value(JSONValue::Number(n))?,
+            (Some(collection), TokenValue::String(s)) => collection.add_value(JSONValue::String { string: s })?,
+            (Some(collection), TokenValue::Number(n)) => collection.add_value(JSONValue::Number { number: n })?,
             (Some(_), TokenValue::BeginArray) => values.push(JSONCollections::Array {data: vec![]}),
             (Some(_), TokenValue::BeginObject) => values.push(JSONCollections::Object {data: Default::default(), curr_label: None}),
             (Some(JSONCollections::Array {..}), TokenValue::EndArray) => {
                 let JSONCollections::Array { data } = values.pop().unwrap() else { return Err(BadState) };
                 if let Some(collection) = values.last_mut() {
-                    collection.add_value(JSONValue::Array(data))?;
+                    collection.add_value(JSONValue::Array { data: data })?;
                 } else {
-                    return Ok(JSONValue::Array(data));
+                    return Ok(JSONValue::Array { data: data });
                 };
             }
             (Some(JSONCollections::Object {..}), TokenValue::EndObject) => {
@@ -95,9 +95,9 @@ fn parse_first(tokens: &mut impl Iterator<Item=Result<Token, ParseError>>) -> Re
                 }
                 
                 if let Some(collection) = values.last_mut() {
-                    collection.add_value(JSONValue::Object(data))?;
+                    collection.add_value(JSONValue::Object { data: data })?;
                 } else {
-                    return Ok(JSONValue::Object(data));
+                    return Ok(JSONValue::Object { data: data });
                 };
             }
             (_, _) => return Err(Unknown)
@@ -140,34 +140,36 @@ mod tests {
         assert_parse(True, "true");
         assert_parse(False, "false");
         assert_parse(Null, "null");
-        assert_parse(Number(0.), "0");
-        assert_parse(String("".to_string()), r#""""#);
+        assert_parse(Number { number: 0. }, "0");
+        assert_parse(String { string: "".to_string() }, r#""""#);
     }
     
     #[test]
     fn parse_empty_array() {
-        assert_parse(Array(vec![]), "[]");
+        assert_parse(Array { data: vec![] }, "[]");
     }
 
     #[test]
     fn parse_empty_object() {
-        assert_parse(Object(Default::default()), "{}");
+        assert_parse(Object { data: Default::default() }, "{}");
     }
 
     #[test]
     fn parse_varied_array() {
-        assert_parse(Array(vec![Number(0.), String("".to_string()), Array(vec![]), Object(Default::default()), True, False, Null]), r#"[0.0, "", [], {}, true, false, null]"#);
+        assert_parse(Array { data: vec![Number { number: 0. }, String { string: "".to_string() }, Array{ data: vec![] }, Object { data: Default::default() }, True, False, Null] }, r#"[0.0, "", [], {}, true, false, null]"#);
     }
     
     #[test]
     fn parse_object() {
-        assert_parse(Object(FxHashMap::from_iter([
-                ("a".to_string(), Array(vec![])), 
-                ("b".to_string(), Object(Default::default())), 
-                ("c".to_string(), Number(0.)), 
-                ("d".to_string(), Array(vec![Object(Default::default())])),
-                ("e".to_string(), String("f".to_string()))
-        ])), r#"{"a": [], "b": {}, "c": 0.0, "d": [{}], "e": "f"}"#)
+        assert_parse(Object {
+            data: FxHashMap::from_iter([
+                ("a".to_string(), Array { data: vec![] }),
+                ("b".to_string(), Object{ data: Default::default() }),
+                ("c".to_string(), Number { number: 0. }),
+                ("d".to_string(), Array { data: vec![Object{ data: Default::default() }] }),
+                ("e".to_string(), String { string: "f".to_string() })
+            ])
+        }, r#"{"a": [], "b": {}, "c": 0.0, "d": [{}], "e": "f"}"#)
     }
     
     #[test]

@@ -9,9 +9,11 @@ ryu = "1.0"
 
 [dev-dependencies]
 criterion = "0.6.0"
+simd-json = "0.15.1"
+serde_json = "1.0"
 
 [[bench]]
-name = "lexer"
+name = "bench"
 harness = false
 
 [workspace]

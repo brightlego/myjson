@@ -1,4 +1,4 @@
-mod types;
+pub mod types;
 pub mod lexer;
 mod parser;
 mod stringify;

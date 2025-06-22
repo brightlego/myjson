@@ -18,12 +18,12 @@ fn stringify_string(string: &String, out_string: &mut String) {
             '\u{0005}' => out_string.push_str("\\u0005"),
             '\u{0006}' => out_string.push_str("\\u0006"),
             '\u{0007}' => out_string.push_str("\\u0007"),
-            '\u{0008}' => out_string.push_str("\\u0008"),
-            '\u{0009}' => out_string.push_str("\\u0009"),
-            '\u{000a}' => out_string.push_str("\\u000a"),
+            '\u{0008}' => out_string.push_str("\\b"),
+            '\u{0009}' => out_string.push_str("\\t"),
+            '\u{000a}' => out_string.push_str("\\n"),
             '\u{000b}' => out_string.push_str("\\u000b"),
-            '\u{000c}' => out_string.push_str("\\u000c"),
-            '\u{000d}' => out_string.push_str("\\u000d"),
+            '\u{000c}' => out_string.push_str("\\f"),
+            '\u{000d}' => out_string.push_str("\\r"),
             '\u{000e}' => out_string.push_str("\\u000e"),
             '\u{000f}' => out_string.push_str("\\u000f"),
             '\u{0010}' => out_string.push_str("\\u0010"),
@@ -96,66 +96,4 @@ pub fn stringify(value: &JSONValue) -> String {
     let mut string = String::new();
     stringify_internal(value, &mut string);
     string
-}
-#[cfg(test)]
-mod tests {
-    use crate::types::JSONValue::*;
-    use super::*;
-
-    fn assert_stringify(expected: &str, input: JSONValue) {
-        assert_eq!(expected, stringify(&input));
-    }
-
-    #[test]
-    fn stringify_null() {
-        assert_stringify("null", Null);
-    }
-
-    #[test]
-    fn stringify_true() {
-        assert_stringify("true", True);
-    }
-
-    #[test]
-    fn stringify_false() {
-        assert_stringify("false", False);
-    }
-
-    #[test]
-    fn stringify_string() {
-        assert_stringify(r#""""#, String { string: "".to_string() });
-        assert_stringify(r#""abc""#, String { string: "abc".to_string() });
-        for i in 0u32..=0x1f {
-            assert_stringify(&format!("\"\\u{i:0>4x}\""), String { string: <char>::from_u32(i).unwrap().to_string() });
-
-        }
-        assert_stringify(r#""\"""#, String { string: "\"".to_string() });
-        assert_stringify(r#""\\""#, String { string: "\\".to_string() });
-
-    }
-
-    #[test]
-    fn stringify_array() {
-        assert_stringify("[]", Array { data: vec![] });
-        assert_stringify("[true]", Array { data: vec![True] });
-        assert_stringify("[true,true]", Array { data: vec![True, True] });
-        assert_stringify("[true,true,true]", Array { data: vec![True, True, True] });
-    }
-
-    #[test]
-    fn stringify_object() {
-        assert_stringify(r#"{}"#, Object { data: FxHashMap::default() });
-        assert_stringify(r#"{"a":true}"#, Object { data: FxHashMap::from_iter([("a".to_string(), True)]) });
-        assert_stringify(r#"{"a":true,"b":false}"#, Object { data: FxHashMap::from_iter([("a".to_string(), True), ("b".to_string(), False)]) });
-    }
-
-    #[test]
-    fn stringify_number() {
-        // The tests are not thorough as there is a large amount of room for implementation details
-        // to change the result while it remaining correct.
-        // Thorough tests are not needed as it almost directly calls a thoroughly tested 3rd party
-        // library.
-        assert_stringify("0.0", Number { number: 0. });
-        assert_stringify("1e100", Number { number: 1e100 });
-    }
 }

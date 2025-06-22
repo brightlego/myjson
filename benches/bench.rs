@@ -2,7 +2,7 @@ use std::fs;
 use std::hint::black_box;
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};
 use myjson::lexer::lexer;
-use myjson::{parse, stringify};
+use myjson::{parse, parse_bytes, stringify};
 
 fn lexer_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("lex");
@@ -39,6 +39,25 @@ fn parser_benchmark(c: &mut Criterion) {
     group.throughput(Throughput::Bytes(twitter.len() as u64));
     group.bench_function("twitter.json", |b| {
         b.iter(|| parse(black_box(twitter.chars())));
+    });
+}
+
+fn byte_parser_benchmark(c: &mut Criterion) {
+    let mut group = c.benchmark_group("byte_parse");
+    let canada = fs::read_to_string("data/canada.json").unwrap();
+    group.throughput(Throughput::Bytes(canada.len() as u64));
+    group.bench_function("canada.json", |b| {
+        b.iter(|| parse_bytes(black_box(canada.as_bytes())));
+    });
+    let citm_catalog = fs::read_to_string("data/citm_catalog.json").unwrap();
+    group.throughput(Throughput::Bytes(citm_catalog.len() as u64));
+    group.bench_function("citm_catalog.json", |b| {
+        b.iter(|| parse_bytes(black_box(citm_catalog.as_bytes())));
+    });
+    let twitter = fs::read_to_string("data/twitter.json").unwrap();
+    group.throughput(Throughput::Bytes(twitter.len() as u64));
+    group.bench_function("twitter.json", |b| {
+        b.iter(|| parse_bytes(black_box(twitter.as_bytes())));
     });
 }
 
@@ -126,5 +145,5 @@ fn stringify_benchmark(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, lexer_benchmark, parser_benchmark, stringify_benchmark, simd_parse_reference, serde_parse_reference);
+criterion_group!(benches, lexer_benchmark, parser_benchmark, stringify_benchmark, simd_parse_reference, serde_parse_reference, byte_parser_benchmark);
 criterion_main!(benches);

@@ -1,3 +1,4 @@
+use std::hint::unreachable_unchecked;
 use rustc_hash::FxHashMap;
 use crate::lexer::lexer;
 use crate::types::{JSONValue, ParseError, Token, TokenValue};
@@ -6,6 +7,23 @@ use crate::types::ParseError::{BadState, Unknown};
 enum JSONCollections {
     Object { data: FxHashMap<String, JSONValue>, curr_label: Option<String> },
     Array { data: Vec<JSONValue> }
+}
+
+impl JSONCollections {
+
+    fn to_object(self) -> Option<(FxHashMap<String, JSONValue>, Option<String>)> {
+        match self {
+            JSONCollections::Object { data, curr_label} => Some((data, curr_label)),
+            _ => None
+        }
+    }
+    
+    fn to_array(self) -> Option<Vec<JSONValue>>  {
+        match self {
+            JSONCollections::Array { data } => Some(data),
+            _ => None
+        }
+    }
 }
 
 impl JSONCollections {
@@ -75,29 +93,29 @@ fn parse_first(tokens: &mut impl Iterator<Item=Result<Token, ParseError>>) -> Re
             (Some(collection), TokenValue::True) => collection.add_value(JSONValue::True)?,
             (Some(collection), TokenValue::False) => collection.add_value(JSONValue::False)?,
             (Some(collection), TokenValue::Null) => collection.add_value(JSONValue::Null)?,
-            (Some(collection), TokenValue::String(s)) => collection.add_value(JSONValue::String { string: s })?,
+            (Some(JSONCollections::Array { data }), TokenValue::String(s)) => data.push(JSONValue::String { string: s }),
             (Some(collection), TokenValue::Number(n)) => collection.add_value(JSONValue::Number { number: n })?,
             (Some(_), TokenValue::BeginArray) => values.push(JSONCollections::Array {data: vec![]}),
             (Some(_), TokenValue::BeginObject) => values.push(JSONCollections::Object {data: Default::default(), curr_label: None}),
             (Some(JSONCollections::Array {..}), TokenValue::EndArray) => {
-                let JSONCollections::Array { data } = values.pop().unwrap() else { return Err(BadState) };
+                let data = values.pop().unwrap().to_array().unwrap();
                 if let Some(collection) = values.last_mut() {
-                    collection.add_value(JSONValue::Array { data: data })?;
+                    collection.add_value(JSONValue::Array { data })?;
                 } else {
-                    return Ok(JSONValue::Array { data: data });
+                    return Ok(JSONValue::Array { data });
                 };
             }
             (Some(JSONCollections::Object {..}), TokenValue::EndObject) => {
-                let JSONCollections::Object { data, curr_label } = values.pop().unwrap() else { return Err(BadState) };
+                let (data, curr_label) = values.pop().unwrap().to_object().unwrap();
                
                 if curr_label.is_some() {
                     return Err(Unknown);
                 }
                 
                 if let Some(collection) = values.last_mut() {
-                    collection.add_value(JSONValue::Object { data: data })?;
+                    collection.add_value(JSONValue::Object { data })?;
                 } else {
-                    return Ok(JSONValue::Object { data: data });
+                    return Ok(JSONValue::Object { data });
                 };
             }
             (_, _) => return Err(Unknown)
@@ -118,5 +136,18 @@ pub fn parse(chars: impl Iterator<Item=char>) -> Result<JSONValue, ParseError> {
         Ok(res)
     } else {
         Err(Unknown)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_to_object_array() {
+        assert!((JSONCollections::Object { data: FxHashMap::default(), curr_label: None}).to_object().is_some());
+        assert!((JSONCollections::Object { data: FxHashMap::default(), curr_label: None}).to_array().is_none());
+        assert!((JSONCollections::Array { data: vec![]}).to_object().is_none());
+        assert!((JSONCollections::Array { data: vec![]}).to_array().is_some());
     }
 }

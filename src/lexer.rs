@@ -45,7 +45,8 @@ impl <T: Iterator<Item=char>> Lexer<T> {
             '6' => 6,
             '7' => 7,
             '8' => 8,
-            '9' => 9, _ => panic!() // The panic case should never be reached
+            '9' => 9,
+            _ => i32::MAX // This case should never be reached
         }
     }
 
@@ -61,7 +62,8 @@ impl <T: Iterator<Item=char>> Lexer<T> {
             '6' => 6,
             '7' => 7,
             '8' => 8,
-            '9' => 9, _ => panic!() // The panic case should never be reached
+            '9' => 9,
+            _ => u64::MAX // This case should never be reached
         }
     }
     fn parse_number(&mut self, mut char: char) -> Result<f64, ParseError> {
@@ -309,6 +311,7 @@ pub fn lexer(chars: impl Iterator<Item=char>) -> impl Iterator<Item=Result<Token
 
 #[cfg(test)]
 mod tests {
+    use std::str::Chars;
     use super::*;
     use crate::types::TokenValue::*;
 
@@ -324,7 +327,7 @@ mod tests {
 
     fn test_lex_fail(input_str: &str) {
         let res = get_tokens(input_str);
-        assert!(res.is_err(), "expected an error, found {:?}", res.unwrap())
+        assert!(res.is_err())
     }
 
     #[test]
@@ -417,6 +420,11 @@ mod tests {
     }
 
     #[test]
+    fn num_fail_minus_plus() {
+        test_lex_fail("-+");
+    }
+
+    #[test]
     fn num_fail_only_plus() {
         test_lex_fail("+");
     }
@@ -444,6 +452,7 @@ mod tests {
     #[test]
     fn num_fail_trailing_e() {
         test_lex_fail("10e");
+        test_lex_fail("10e ");
         test_lex_fail("10e+");
         test_lex_fail("10e-");
     }
@@ -495,6 +504,25 @@ mod tests {
         test_lex_fail(r#""\""#);
         test_lex_fail(r#""\u01""#);
         test_lex_fail(r#""\u012z""#);
+        test_lex_fail(r#""\"#);
+        test_lex_fail(r#""\u"#);
+        test_lex_fail(r#""\u_"#);
+        test_lex_fail(r#""\u0"#);
+        test_lex_fail(r#""\u0_"#);
+        test_lex_fail(r#""\u00"#);
+        test_lex_fail(r#""\u00_"#);
+        test_lex_fail(r#""\u000"#);
+        test_lex_fail(r#""\u000_"#);
+        test_lex_fail(r#""\uD834\"#);
+        test_lex_fail(r#""\uD834\u"#);
+        test_lex_fail(r#""\uD834\u_"#);
+        test_lex_fail(r#""\uD834\u0"#);
+        test_lex_fail(r#""\uD834\u0_"#);
+        test_lex_fail(r#""\uD834\u00"#);
+        test_lex_fail(r#""\uD834\u00_"#);
+        test_lex_fail(r#""\uD834\u000"#);
+        test_lex_fail(r#""\uD834\u000_"#);
+        test_lex_fail(r#""\uD834\u0000"#);
     }
     #[test]
     fn string_bad_characters() {
@@ -535,8 +563,16 @@ mod tests {
         test_lex_fail("True");
         test_lex_fail("False");
         test_lex_fail("Null");
-        test_lex_fail("talse");
+        test_lex_fail("tals");
+        test_lex_fail("trls");
+        test_lex_fail("trul");
         test_lex_fail("frue");
+        test_lex_fail("farue");
+        test_lex_fail("falrue");
+        test_lex_fail("falsrue");
+        test_lex_fail("na");
+        test_lex_fail("nua");
+        test_lex_fail("nula");
         test_lex_fail("nul");
         test_lex_fail("nulll");
         test_lex_fail("Null");
@@ -581,5 +617,31 @@ mod tests {
         test_lex_tokens([BeginObject, EndObject], r#"{ }"#);
         test_lex_tokens([BeginObject, EndObject], r#"{    }"#);
         test_lex_tokens([BeginObject, EndObject], r#"{}"#);
+    }
+
+    #[test]
+    fn test_from_digit() {
+        assert_eq!(0, Lexer::<Chars>::from_digit_int('0'));
+        assert_eq!(1, Lexer::<Chars>::from_digit_int('1'));
+        assert_eq!(2, Lexer::<Chars>::from_digit_int('2'));
+        assert_eq!(3, Lexer::<Chars>::from_digit_int('3'));
+        assert_eq!(4, Lexer::<Chars>::from_digit_int('4'));
+        assert_eq!(5, Lexer::<Chars>::from_digit_int('5'));
+        assert_eq!(6, Lexer::<Chars>::from_digit_int('6'));
+        assert_eq!(7, Lexer::<Chars>::from_digit_int('7'));
+        assert_eq!(8, Lexer::<Chars>::from_digit_int('8'));
+        assert_eq!(9, Lexer::<Chars>::from_digit_int('9'));
+        assert_eq!(i32::MAX, Lexer::<Chars>::from_digit_int('a'));
+        assert_eq!(0, Lexer::<Chars>::from_digit_u64('0'));
+        assert_eq!(1, Lexer::<Chars>::from_digit_u64('1'));
+        assert_eq!(2, Lexer::<Chars>::from_digit_u64('2'));
+        assert_eq!(3, Lexer::<Chars>::from_digit_u64('3'));
+        assert_eq!(4, Lexer::<Chars>::from_digit_u64('4'));
+        assert_eq!(5, Lexer::<Chars>::from_digit_u64('5'));
+        assert_eq!(6, Lexer::<Chars>::from_digit_u64('6'));
+        assert_eq!(7, Lexer::<Chars>::from_digit_u64('7'));
+        assert_eq!(8, Lexer::<Chars>::from_digit_u64('8'));
+        assert_eq!(9, Lexer::<Chars>::from_digit_u64('9'));
+        assert_eq!(u64::MAX, Lexer::<Chars>::from_digit_u64('a'));
     }
 }

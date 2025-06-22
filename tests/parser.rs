@@ -1,15 +1,18 @@
 use rustc_hash::FxHashMap;
-use myjson::parse;
+use myjson::{parse, parse_bytes};
 use myjson::types::JSONValue;
 use myjson::types::JSONValue::{Array, False, Null, Number, Object, True};
 
 fn assert_parse(expected: JSONValue, input: &str) {
-    assert_eq!(Ok(expected), parse(input.chars()));
+    assert_eq!(Ok(expected.clone()), parse(input.chars()));
+    assert_eq!(Ok(expected), parse_bytes(input.as_bytes()));
 }
 
 fn assert_parse_fail(input: &str) {
-    let res = parse(input.chars());
-    assert!(res.is_err(), "Expected an error, found {:?}", res.unwrap())
+    let res1 = parse(input.chars());
+    let res2 = parse_bytes(input.as_bytes());
+    assert!(res1.is_err(), "Expected an error, found {:?}", res1.unwrap());
+    assert!(res2.is_err(), "Expected an error, found {:?}", res2.unwrap());
 }
 
 #[test]
@@ -18,7 +21,7 @@ fn parse_literal() {
     assert_parse(False, "false");
     assert_parse(Null, "null");
     assert_parse(Number { number: 0. }, "0");
-    assert_parse(myjson::types::JSONValue::String { string: "".to_string() }, r#""""#);
+    assert_parse( JSONValue::String { string: "".to_string() }, r#""""#);
 }
 
 #[test]
@@ -76,6 +79,7 @@ fn parse_must_finish_object() {
 #[test]
 fn parse_no_empty() {
     assert_parse_fail("");
+    assert_parse_fail("_");
 }
 
 #[test]
@@ -92,4 +96,16 @@ fn parse_no_bad_object() {
     assert_parse_fail(r#"{1: 2}"#);
     assert_parse_fail(r#"{"a": 1, b: 2}"#);
     assert_parse_fail(r#"{a: 1}"#);
+    assert_parse_fail(r#"{"#);
+    assert_parse_fail(r#"{"a""#);
+    assert_parse_fail(r#"{"a":"#);
+    assert_parse_fail(r#"{"a":true"#);
+    assert_parse_fail(r#"{"a"_"#);
+    assert_parse_fail(r#"{true}"#);
+    assert_parse_fail(r#"{false}"#);
+    assert_parse_fail(r#"{null}"#);
+    assert_parse_fail(r#"{[]}"#);
+    assert_parse_fail(r#"{{}}"#);
+    assert_parse_fail(r#"{"a}"#);
+    assert_parse_fail(r#"{"a":true)}"#);
 }
